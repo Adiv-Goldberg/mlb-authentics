@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLB Display Certificate Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;600;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .paper-sheet {
+            background-color: white;
+            width: 8.5in;
+            min-height: 11in;
+            margin: 20px auto;
+            padding: 0.5in;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .thin-grey-line {
+            height: 1px;
+            background-color: #cbd5e1;
+            width: 100%;
+            margin: 8px 0;
+        }
+
+        .border-table {
+            border: 1px solid #cbd5e1;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .border-table td {
+            border: 1px solid #cbd5e1;
+            padding: 10px 14px;
+        }
+
+        .grey-fill {
+            background-color: #f8fafc;
+        }
+
+        .silhouette-item {
+            border: 1px solid #cbd5e1;
+            background-color: #f8fafc;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            gap: 12px;
+        }
+
+        .silhouette-text-container {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        #view-pitch-list {
+            list-style-type: disc;
+            display: inline-block;
+            margin: 0;
+            padding: 0;
+            padding-left: 1.25rem;
+        }
+
+        #view-pitch-list li {
+            padding-left: 8px; /* Space between bullet and text */
+        }
+
+        /* Editor UI helpers */
+        .style-panel {
+            display: none;
+            background: #1e293b;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 8px;
+            border: 1px solid #334155;
+        }
+        
+        .style-panel.active {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        input[type="number"], select {
+            background: #0f172a;
+            color: white;
+            border: 1px solid #334155;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: white; margin: 0; padding: 0; }
+            .paper-sheet { 
+                box-shadow: none; 
+                margin: 0; 
+                width: 100%;
+                padding: 0.5in;
+            }
+        }
+    </style>
+</head>
+<body class="m-0 p-0">
+
+    <div class="no-print bg-slate-900 text-white p-6 sticky top-0 z-50 shadow-xl max-h-[40vh] overflow-y-auto">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <img src="https://builds.mlbstatic.com/mlb.com/sections/authentication/builds/dbb7587051547ba412ff95e4622402ba4999a23e_1646158569/images/logo-mlb.png" alt="MLB" class="h-6 invert">
+                    <h2 class="text-xl font-black uppercase italic tracking-tighter">Authentication Generator</h2>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="generateDeterministicHologram()" class="bg-amber-500 text-slate-900 px-4 py-2 rounded font-bold text-sm hover:bg-amber-400 transition">
+                        Autonumber ID
+                    </button>
+                    <button onclick="saveAsPDF()" class="bg-blue-600 text-white px-6 py-2 rounded font-bold text-sm hover:bg-blue-500 transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Save as PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Data Columns -->
+                <div class="space-y-6">
+                    <!-- Item Section -->
+                    <div class="bg-slate-800 p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-bold uppercase text-slate-400">Item Branding</span>
+                            <button onclick="toggleStyles('style-item')" class="text-[10px] bg-slate-700 px-2 py-1 rounded hover:bg-slate-600 transition">Style Settings</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="text" id="input-item" placeholder="Item Name" value="Official Major League Baseball" oninput="updatePreview()" class="bg-slate-900 border-slate-700 p-2 rounded text-sm outline-none">
+                            <input type="text" id="input-number" placeholder="Hologram ID" value="HZ123456" oninput="updatePreview()" class="bg-slate-900 border-slate-700 p-2 rounded text-sm font-mono outline-none">
+                        </div>
+                        <div id="style-item" class="style-panel">
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Item Size</label><input type="number" id="style-item-size" value="30" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Item Weight</label><input type="number" id="style-item-weight" value="600" step="100" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Align</label>
+                                <select id="style-item-align" oninput="updateStyles()">
+                                    <option value="center" selected>Center</option>
+                                    <option value="left">Left</option>
+                                    <option value="right">Right</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Holo Size</label><input type="number" id="style-holo-label-size" value="25" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Holo Weight</label><input type="number" id="style-holo-label-weight" value="500" step="100" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Num Weight</label><input type="number" id="style-number-weight" value="900" step="100" oninput="updateStyles()"></div>
+                        </div>
+                    </div>
+
+                    <!-- Labels Section -->
+                    <div class="bg-slate-800 p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-bold uppercase text-slate-400">Section Labels (Grey)</span>
+                            <button onclick="toggleStyles('style-labels')" class="text-[10px] bg-slate-700 px-2 py-1 rounded hover:bg-slate-600 transition">Style Settings</button>
+                        </div>
+                        <div id="style-labels" class="style-panel">
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Size</label><input type="number" id="style-label-size" value="20" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Weight</label><input type="number" id="style-label-weight" value="50" step="10" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Align</label>
+                                <select id="style-label-align" oninput="updateStyles()">
+                                    <option value="left" selected>Left</option>
+                                    <option value="center">Center</option>
+                                    <option value="right">Right</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Events Section -->
+                    <div class="bg-slate-800 p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-bold uppercase text-slate-400">Event Details</span>
+                            <button onclick="toggleStyles('style-events')" class="text-[10px] bg-slate-700 px-2 py-1 rounded hover:bg-slate-600 transition">Style Settings</button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="text" id="input-event" value="Yankees vs Red Sox" oninput="updatePreview()" class="bg-slate-900 p-2 rounded text-xs outline-none">
+                            <input type="text" id="input-date" value="May 13, 2024" oninput="updatePreview()" class="bg-slate-900 p-2 rounded text-xs outline-none">
+                            <input type="text" id="input-inning" value="Bottom of the 4th" oninput="updatePreview()" class="bg-slate-900 p-2 rounded text-xs outline-none">
+                        </div>
+                        <div id="style-events" class="style-panel">
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Text Size</label><input type="number" id="style-event-size" value="14" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Head Weight</label><input type="number" id="style-event-head-weight" value="500" step="100" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Inning Weight</label><input type="number" id="style-inning-weight" value="500" step="100" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Body Align</label>
+                                <select id="style-event-align" oninput="updateStyles()">
+                                    <option value="left" selected>Left</option>
+                                    <option value="center">Center</option>
+                                    <option value="right">Right</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <!-- Players Section -->
+                    <div class="bg-slate-800 p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-bold uppercase text-slate-400">Players & List</span>
+                            <button onclick="toggleStyles('style-players')" class="text-[10px] bg-slate-700 px-2 py-1 rounded hover:bg-slate-600 transition">Style Settings</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" id="input-atBat" value="Aaron Judge" oninput="updatePreview()" class="bg-slate-900 p-2 rounded text-xs outline-none">
+                            <input type="text" id="input-pitching" value="Gerrit Cole" oninput="updatePreview()" class="bg-slate-900 p-2 rounded text-xs outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <textarea id="input-pitchInfo" oninput="updatePreview()" placeholder="List items..." rows="2" class="bg-slate-900 p-2 rounded text-xs outline-none resize-none">98 MPH Four-Seam Fastball</textarea>
+                            <textarea id="input-video" oninput="updatePreview()" placeholder="Links..." rows="2" class="bg-slate-900 p-2 rounded text-xs outline-none resize-none">https://www.mlb.com/video/</textarea>
+                        </div>
+                        <div id="style-players" class="style-panel">
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">List Size</label><input type="number" id="style-list-size" value="12" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Player Size</label><input type="number" id="style-player-size" value="12" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Align</label>
+                                <select id="style-list-align" oninput="updateStyles()">
+                                    <option value="left" selected>Left</option>
+                                    <option value="center">Center</option>
+                                    <option value="right">Right</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Branding Section -->
+                    <div class="bg-slate-800 p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-bold uppercase text-slate-400">Branding & Footer</span>
+                            <button onclick="toggleStyles('style-brand')" class="text-[10px] bg-slate-700 px-2 py-1 rounded hover:bg-slate-600 transition">Style Settings</button>
+                        </div>
+                        <div id="style-brand" class="style-panel">
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">MLB Logo H</label><input type="number" id="style-mlb-size" value="50" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">AI Logo H</label><input type="number" id="style-ai-size" value="56" oninput="updateStyles()"></div>
+                            <div class="flex flex-col"><label class="text-[9px] text-slate-500">Footer Align</label>
+                                <select id="style-footer-align" oninput="updateStyles()">
+                                    <option value="center" selected>Center</option>
+                                    <option value="left">Left</option>
+                                    <option value="right">Right</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Letter Sheet -->
+    <div id="capture-area">
+        <div class="paper-sheet" id="sheet">
+            <div class="thin-grey-line mt-4"></div>
+            <div class="label-grey-light mb-4" id="view-label-item">ITEM</div>
+            
+            <div id="container-item-header" class="w-full flex flex-col items-center">
+                <div id="view-item-name" class="tracking-tight leading-tight">Official Major League Baseball</div>
+                <div class="mt-4 flex items-center gap-3">
+                    <span id="view-holo-label" class="tracking-tight leading-tight">Hologram number</span>
+                    <span id="view-holo-number" class="tracking-tight leading-tight">HZ123456</span>
+                </div>
+            </div>
+
+            <div id="container-mlb-logo" class="w-full flex justify-center mt-10 mb-10">
+                <img src="https://builds.mlbstatic.com/mlb.com/sections/authentication/builds/dbb7587051547ba412ff95e4622402ba4999a23e_1646158569/images/logo-mlb.png" alt="MLB" id="img-mlb" class="h-14">
+            </div>
+
+            <div class="thin-grey-line"></div>
+            <div class="label-grey-light mb-4" id="view-label-events">EVENTS</div>
+
+            <table class="border-table">
+                <tr>
+                    <td class="grey-fill text-black font-bold w-1/4" id="head-event">Event</td>
+                    <td class="text-black w-3/4" colspan="3" id="view-event">Yankees vs Red Sox</td>
+                </tr>
+                <tr>
+                    <td class="grey-fill text-black font-bold w-1/4" id="head-date">Date</td>
+                    <td class="text-black w-3/4" colspan="3" id="view-date">May 13, 2024</td>
+                </tr>
+                <tr>
+                    <td class="grey-fill text-black font-bold uppercase" colspan="4" id="view-inning">Bottom of the 4th</td>
+                </tr>
+                <tr>
+                    <td class="p-4 w-1/4 align-top" style="border-right: none;">
+                        <div class="flex flex-col gap-3">
+                            <div class="silhouette-item">
+                                <img src="https://builds.mlbstatic.com/mlb.com/sections/authentication/builds/dbb7587051547ba412ff95e4622402ba4999a23e_1646158569/images/batter.png" class="h-8" alt="Batter">
+                                <div class="silhouette-text-container">
+                                    <span class="text-[10px] font-thin uppercase text-slate-400">At Bat</span>
+                                    <span class="player-name" id="view-atBat">Aaron Judge</span>
+                                </div>
+                            </div>
+                            <div class="silhouette-item">
+                                <img src="https://builds.mlbstatic.com/mlb.com/sections/authentication/builds/dbb7587051547ba412ff95e4622402ba4999a23e_1646158569/images/pitcher.png" class="h-8" alt="Pitcher">
+                                <div class="silhouette-text-container">
+                                    <span class="text-[10px] font-thin uppercase text-slate-400">Pitcher</span>
+                                    <span class="player-name" id="view-pitching">Gerrit Cole</span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td colspan="3" class="p-6 align-top" id="container-pitch-list" style="border-left: none;">
+                        <ul id="view-pitch-list" class="tracking-tight"></ul>
+                    </td>
+                </tr>
+            </table>
+
+            <div id="container-footer" class="mt-12 px-10 w-full flex flex-col items-center">
+                <p id="view-disclaimer" class="text-[9px] text-black leading-tight">
+                    The Authentication Program was created to protect our fans by eliminating Certificates of Authenticity that can be easily forged and/or copied. This print out is only for display purposes and not considered authentication for your item.
+                </p>
+                <div class="mt-10 flex flex-col items-center">
+                    <div class="text-[8px] uppercase font-bold text-gray-400 tracking-widest mb-2">Powered by</div>
+                    <img src="https://builds.mlbstatic.com/mlb.com/sections/authentication/builds/dbb7587051547ba412ff95e4622402ba4999a23e_1646158569/images/ap-logo.png" alt="AI" id="img-ai" class="h-14 opacity-90">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleStyles(id) {
+            const panel = document.getElementById(id);
+            panel.classList.toggle('active');
+        }
+
+        function updatePreview() {
+            const fields = ['item', 'number', 'event', 'date', 'inning', 'atBat', 'pitching'];
+            fields.forEach(field => {
+                const input = document.getElementById('input-' + field);
+                const view = document.getElementById('view-' + (field === 'item' ? 'item-name' : (field === 'number' ? 'holo-number' : field)));
+                if (input && view) {
+                    // Casing matches user input for players/item/event details
+                    view.innerText = input.value;
+                }
+            });
+
+            const pitchItems = document.getElementById('input-pitchInfo').value.split('\n').filter(l => l.trim());
+            const linkItems = document.getElementById('input-video').value.split('\n').filter(l => l.trim());
+            const list = document.getElementById('view-pitch-list');
+            list.innerHTML = '';
+            
+            pitchItems.forEach((item, i) => {
+                const li = document.createElement('li');
+                const link = linkItems[i] ? linkItems[i].trim() : "";
+                if (link && link !== "#") {
+                    const a = document.createElement('a');
+                    a.href = link; 
+                    a.target = '_blank'; // Opens in new tab
+                    a.className = "text-blue-600 underline"; // Preserves casing
+                    a.innerText = item; 
+                    li.appendChild(a);
+                } else {
+                    const s = document.createElement('span');
+                    s.className = "text-black"; // Preserves casing
+                    s.innerText = item; 
+                    li.appendChild(s);
+                }
+                list.appendChild(li);
+            });
+        }
+
+        function updateStyles() {
+            const itemName = document.getElementById('view-item-name');
+            itemName.style.fontSize = document.getElementById('style-item-size').value + 'px';
+            itemName.style.fontWeight = document.getElementById('style-item-weight').value;
+            document.getElementById('container-item-header').style.alignItems = getFlexAlign(document.getElementById('style-item-align').value);
+
+            const holoLabel = document.getElementById('view-holo-label');
+            const holoNumber = document.getElementById('view-holo-number');
+            const hLabelSize = document.getElementById('style-holo-label-size').value + 'px';
+            holoLabel.style.fontSize = hLabelSize;
+            holoNumber.style.fontSize = hLabelSize;
+            holoLabel.style.fontWeight = document.getElementById('style-holo-label-weight').value;
+            holoNumber.style.fontWeight = document.getElementById('style-number-weight').value;
+
+            const labels = [document.getElementById('view-label-item'), document.getElementById('view-label-events')];
+            const labelSize = document.getElementById('style-label-size').value + 'px';
+            const labelWeight = document.getElementById('style-label-weight').value;
+            const labelAlign = document.getElementById('style-label-align').value;
+            labels.forEach(l => {
+                l.style.fontSize = labelSize;
+                l.style.fontWeight = labelWeight;
+                l.style.textAlign = labelAlign;
+            });
+
+            const eSize = document.getElementById('style-event-size').value + 'px';
+            const eAlign = document.getElementById('style-event-align').value;
+            const tds = document.querySelectorAll('.border-table td');
+            tds.forEach(td => {
+                td.style.fontSize = eSize;
+                if (!td.classList.contains('grey-fill')) td.style.textAlign = eAlign;
+            });
+            document.getElementById('head-event').style.fontWeight = document.getElementById('style-event-head-weight').value;
+            document.getElementById('head-date').style.fontWeight = document.getElementById('style-event-head-weight').value;
+            document.getElementById('view-inning').style.fontWeight = document.getElementById('style-inning-weight').value;
+
+            const playerNames = document.querySelectorAll('.player-name');
+            playerNames.forEach(p => p.style.fontSize = document.getElementById('style-player-size').value + 'px');
+            
+            const pitchList = document.getElementById('view-pitch-list');
+            pitchList.style.fontSize = document.getElementById('style-list-size').value + 'px';
+            document.getElementById('container-pitch-list').style.textAlign = document.getElementById('style-list-align').value;
+
+            document.getElementById('img-mlb').style.height = (document.getElementById('style-mlb-size').value) + 'px';
+            document.getElementById('img-ai').style.height = (document.getElementById('style-ai-size').value) + 'px';
+            const fAlign = document.getElementById('style-footer-align').value;
+            document.getElementById('container-footer').style.alignItems = getFlexAlign(fAlign);
+            document.getElementById('view-disclaimer').style.textAlign = fAlign;
+            document.getElementById('container-mlb-logo').style.justifyContent = getFlexJustify(fAlign);
+        }
+
+        function getFlexAlign(val) {
+            return val === 'center' ? 'center' : (val === 'right' ? 'flex-end' : 'flex-start');
+        }
+        function getFlexJustify(val) {
+            return val === 'center' ? 'center' : (val === 'right' ? 'flex-end' : 'flex-start');
+        }
+
+        function generateDeterministicHologram() {
+            const inputs = [
+                document.getElementById('input-item').value,
+                document.getElementById('input-event').value,
+                document.getElementById('input-date').value,
+                document.getElementById('input-inning').value
+            ].join('|');
+            let hash = 0;
+            for (let i = 0; i < inputs.length; i++) {
+                hash = ((hash << 5) - hash) + inputs.charCodeAt(i);
+                hash |= 0;
+            }
+            const absHash = Math.abs(hash);
+            const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const id = letters[absHash % 26] + letters[(absHash / 26 | 0) % 26] + ((absHash % 900000) + 100000);
+            document.getElementById('input-number').value = id;
+            updatePreview();
+        }
+
+        function saveAsPDF() {
+            const element = document.getElementById('sheet');
+            
+            const itemName = document.getElementById('input-item').value || 'Item';
+            const inning = document.getElementById('input-inning').value || 'Inning';
+            const eventName = document.getElementById('input-event').value || 'Event';
+            const dateStr = document.getElementById('input-date').value || 'Date';
+            
+            const fileName = `${itemName} from ${inning} of ${eventName} on ${dateStr}.pdf`.replace(/[/\\?%*:|"<>]/g, '-');
+
+            const opt = {
+                margin: 0,
+                filename: fileName,
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: { 
+                    scale: 3, 
+                    useCORS: true, 
+                    letterRendering: true,
+                    scrollX: 0,
+                    scrollY: 0,
+                    windowWidth: document.documentElement.offsetWidth
+                },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+            
+            window.scrollTo(0, 0);
+            html2pdf().set(opt).from(element).save();
+        }
+
+        window.onload = () => {
+            updatePreview();
+            updateStyles();
+        };
+    </script>
+</body>
+</html>
