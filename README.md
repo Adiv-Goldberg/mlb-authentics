@@ -4,20 +4,18 @@ This repository contains front-end web tools to generate, organize, and display 
 
 ## Included Tools
 
-### 1. [Certificate Generator](https://www.google.com/search?q=https://adiv-goldberg.github.io/mlb-authentics/mlb%2520authentics%2520maker.html)
-
-This tool builds the actual PDF display documents.
+### 1. [Certificate Generator](https://adiv-goldberg.github.io/mlb-authentics/mlb%20authentics%20maker.html)
+This tool builds the actual PDF display documents. 
 
 * **Live Preview**: Type in item details (batter, pitcher, inning, pitch speed) and see the visual layout update instantly.
 * **Auto-Numbering**: Generates a unique, repeatable Hologram ID based on the text inputs.
 * **Custom Styling**: Includes numeric controls to tweak font sizes, text weights, and block alignment for every section of the page.
 * **PDF Export**: Saves the certificate as a perfectly scaled 1-page PDF. The file names are created automatically using the item details.
 
-### 2. [Archive Homepage](https://www.google.com/search?q=https://adiv-goldberg.github.io/mlb-authentics/)
-
+### 2. [Archive Homepage](https://adiv-goldberg.github.io/mlb-authentics/)
 This is the main viewing hub that acts as a database interface.
 
-* **Google Sheets Integration**: Pulls live records directly from a public Google Sheet.
+* **Google Sheets Integration**: Pulls live records directly from a public Google Sheet. 
 * **Search and Sort**: Filter the table instantly by Hologram ID or item info. Click the column headers to sort alphabetically or chronologically by date.
 * **Smart QR Codes**: Click any Hologram ID in the table to create a QR code for that item's PDF. The tool uses a free API to shorten the URL in the background, keeping the QR code grid simple and easy to scan. You can download the code as a PNG.
 * **Direct Linking**: Includes buttons to view the specific MLB highlight video for each item.
