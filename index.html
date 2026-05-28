@@ -365,45 +365,24 @@
             if(currentSort.column === 'date') dateIcon.style.transform = transformStr;
         }
 
-        async function openQrModal(url, id) {
+        // --- QR Code Modal ---
+        function openQrModal(url, id) {
             const modal = document.getElementById('qr-modal');
             const container = document.getElementById('qr-code-container');
             const idLabel = document.getElementById('qr-modal-id');
             
             idLabel.innerText = id;
-            container.innerHTML = '<div class="flex justify-center items-center h-48 w-48"><span class="text-sm text-slate-500 animate-pulse">Generating short link...</span></div>';
+            container.innerHTML = '';
             container.setAttribute('data-id', id);
             modal.classList.remove('hidden');
 
-            let finalUrl = url;
-            
             try {
-                const response = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(url)}`);
-                const data = await response.json();
-                if (data.shorturl) {
-                    finalUrl = data.shorturl;
-                }
-            } catch (e) {
-                console.log("Primary shortener failed, trying backup...");
-                try {
-                    const backupRes = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
-                    const backupText = await backupRes.text();
-                    if (backupText.startsWith('http')) {
-                        finalUrl = backupText;
-                    }
-                } catch (backupError) {
-                    console.log("Backup shortener failed, using original URL.");
-                }
-            }
-
-            container.innerHTML = '';
-            
-            try {
+                // Generate B&W QR code using normal URL
                 new QRCode(container, {
-                    text: finalUrl,
+                    text: url,
                     width: 256,
                     height: 256,
-                    colorDark : "#000000",
+                    colorDark : "#000000", // Pure black for max contrast
                     colorLight : "#ffffff",
                     correctLevel : QRCode.CorrectLevel.L
                 });
