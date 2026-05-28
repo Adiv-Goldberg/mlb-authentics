@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MLB Authentication Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         
@@ -17,9 +18,15 @@
             background-color: #041E42;
             background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
         }
+        
+        .search-expanded {
+            width: 16rem !important;
+            opacity: 1 !important;
+            padding-left: 0.5rem;
+        }
     </style>
 </head>
-<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+<body class="text-slate-800 antialiased min-h-screen flex flex-col relative">
 
     <!-- Header / Hero Section -->
     <header class="hero-pattern text-white border-b-4 border-red-600 shadow-xl">
@@ -55,12 +62,20 @@
     <main class="flex-grow max-w-5xl mx-auto w-full px-6 py-12">
         
         <div class="flex items-center justify-between mb-8">
-            <div>
+            <div class="flex items-center gap-4">
                 <h2 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                     Certificate Archive
                 </h2>
-                <p class="text-sm text-slate-500 mt-1">Live data sourced from Google Sheets database.</p>
+                
+                <div class="flex items-center">
+                    <button onclick="toggleSearch()" class="p-2 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors focus:outline-none" aria-label="Search">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </button>
+                    <div id="search-wrapper" class="overflow-hidden transition-all duration-300 w-0 opacity-0 flex items-center">
+                        <input type="text" id="search-input" placeholder="Search ID or Info..." class="w-full px-4 py-2 border border-slate-300 rounded-full text-sm outline-none focus:border-blue-500 shadow-inner" oninput="handleSearch(this.value)">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -85,9 +100,23 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
-                            <th class="py-4 px-6 font-semibold w-48">Hologram ID</th>
-                            <th class="py-4 px-6 font-semibold">Item Information</th>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider select-none">
+                            <th class="py-4 px-6 font-semibold w-48 cursor-pointer hover:bg-slate-100 transition-colors" onclick="handleSort('id')">
+                                <div class="flex items-center gap-2">
+                                    Hologram ID
+                                    <span id="sort-icon-id" class="opacity-0 transition-opacity">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                                    </span>
+                                </div>
+                            </th>
+                            <th class="py-4 px-6 font-semibold cursor-pointer hover:bg-slate-100 transition-colors" onclick="handleSort('date')">
+                                <div class="flex items-center gap-2">
+                                    Item Information (Sorted by Date)
+                                    <span id="sort-icon-date" class="opacity-0 transition-opacity">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                                    </span>
+                                </div>
+                            </th>
                             <th class="py-4 px-6 font-semibold text-right w-40">Actions</th>
                         </tr>
                     </thead>
@@ -107,42 +136,68 @@
                 <img src="https://builds.mlbstatic.com/mlb.com/sections/authentication/builds/dbb7587051547ba412ff95e4622402ba4999a23e_1646158569/images/ap-logo.png" alt="AP" class="h-8 grayscale opacity-50">
                 <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Authentication Hub</span>
             </div>
-            <p class="text-xs text-slate-400">
-                &copy; 2026 Display Purposes Only. Not official MLB Authentication.
-            </p>
+            <div class="text-xs text-slate-400 text-center md:text-right flex flex-col gap-1">
+                <p>&copy; 2026 Display Purposes Only. Not official MLB Authentication.</p>
+                <a href="https://github.com/Adiv-Goldberg/mlb-authentics" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-700 hover:underline inline-flex items-center justify-center md:justify-end gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                    GitHub Repository
+                </a>
+            </div>
         </div>
     </footer>
 
+    <!-- QR Code Modal -->
+    <div id="qr-modal" class="hidden fixed inset-0 bg-slate-900/60 z-50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full relative">
+            <button onclick="closeQrModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800 transition-colors p-1" aria-label="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <div class="text-center mb-6">
+                <h3 class="font-bold text-xl text-slate-900">Scan Certificate</h3>
+                <p class="text-sm text-slate-500 mt-1">Hologram ID: <span id="qr-modal-id" class="font-mono font-bold text-slate-700"></span></p>
+            </div>
+            <div class="flex justify-center mb-6 bg-white p-4 rounded-xl border border-slate-100 shadow-inner">
+                <div id="qr-code-container"></div>
+            </div>
+            <button onclick="downloadQR()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 shadow-md shadow-blue-500/20">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download PNG
+            </button>
+        </div>
+    </div>
+
     <script>
-        // Google Sheet Details
-        // From user URL: https://docs.google.com/spreadsheets/d/13x5P-FavR1TCPscDQnpPQsUo-jj3BLp3vc591MDgEHw/edit
         const SHEET_ID = '13x5P-FavR1TCPscDQnpPQsUo-jj3BLp3vc591MDgEHw';
-        
-        // We use the Google Visualization API to query public sheets as JSON
-        // Requires the sheet to be accessible to "Anyone with the link"
         const QUERY_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+
+        let allRecords = [];
+        let searchQuery = "";
+        let currentSort = { column: null, direction: 'desc' };
 
         const loadingState = document.getElementById('loading-state');
         const errorState = document.getElementById('error-state');
         const dataContainer = document.getElementById('data-container');
         const dataList = document.getElementById('data-list');
 
+        // Extract Date object from the "Month DD, YYYY" syntax at the end of the info string
+        function extractDate(infoStr) {
+            const regex = /(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}$/i;
+            const match = infoStr.match(regex);
+            if (match) {
+                return new Date(match[0]).getTime();
+            }
+            return 0; // Return 0 for unknown dates so they sort to the bottom usually
+        }
+
         async function fetchSheetData() {
             try {
                 const response = await fetch(QUERY_URL);
-                
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-
+                if (!response.ok) throw new Error('Network response was not ok');
                 const text = await response.text();
-                
-                // The API returns a text wrapper around JSON: `/*O_o*/ google.visualization.Query.setResponse({ ... })`
-                // We need to strip the prefix and suffix to parse the JSON
                 const jsonString = text.substring(47, text.length - 2);
                 const data = JSON.parse(jsonString);
 
-                renderData(data.table);
+                processRawData(data.table.rows);
 
             } catch (error) {
                 console.error("Error fetching sheet:", error);
@@ -152,45 +207,75 @@
             }
         }
 
-        function renderData(table) {
+        function processRawData(rows) {
+            allRecords = [];
+            
+            if (rows && rows.length > 0) {
+                rows.forEach(row => {
+                    if(!row.c) return;
+
+                    const hologramId = row.c[0] && row.c[0].v ? row.c[0].v.toString() : 'Unknown ID';
+                    const infoText = row.c[1] && row.c[1].v ? row.c[1].v.toString() : 'No information available';
+                    const pdfName = row.c[2] && row.c[2].v ? row.c[2].v.toString() : '#';
+                    const playUrl = row.c[3] && row.c[3].v ? row.c[3].v.toString() : ''; 
+
+                    // Ignore header
+                    if (hologramId.toLowerCase().includes('hologram') || infoText.toLowerCase().includes('info')) {
+                        return;
+                    }
+
+                    // Construct the absolute URL pointing to the GitHub pages hosted PDFs
+                    let absolutePdfUrl = '#';
+                    if (pdfName !== '#') {
+                        // Using encodeURIComponent to ensure spaces and special characters in filenames are safely handled in the URL
+                        absolutePdfUrl = `https://adiv-goldberg.github.io/mlb-authentics/${encodeURIComponent(pdfName)}`;
+                    }
+
+                    allRecords.push({
+                        hologramId,
+                        infoText,
+                        pdfName,
+                        absolutePdfUrl,
+                        playUrl,
+                        parsedDate: extractDate(infoText)
+                    });
+                });
+            }
+
+            // Default sort by date descending
+            handleSort('date');
+        }
+
+        function renderTable() {
             loadingState.classList.add('hidden');
             dataContainer.classList.remove('hidden');
             dataList.innerHTML = '';
 
-            if (!table.rows || table.rows.length === 0) {
+            // Filter by search
+            const filteredRecords = allRecords.filter(r => 
+                r.hologramId.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                r.infoText.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+
+            if (filteredRecords.length === 0) {
                 dataList.innerHTML = `
                     <tr>
                         <td colspan="3" class="py-8 px-6 text-center text-slate-500">
-                            No records found in the database.
+                            No matching records found.
                         </td>
                     </tr>
                 `;
                 return;
             }
             
-            table.rows.forEach(row => {
-                // Ensure row has cells
-                if(!row.c) return;
+            filteredRecords.forEach(record => {
+                const targetAttr = record.absolutePdfUrl === '#' ? '_self' : '_blank';
+                const safePdfLink = record.absolutePdfUrl;
 
-                // Safely extract data, handling potential null cells
-                const hologramId = row.c[0] && row.c[0].v ? row.c[0].v : 'Unknown ID';
-                const infoText = row.c[1] && row.c[1].v ? row.c[1].v : 'No information available';
-                const pdfName = row.c[2] && row.c[2].v ? row.c[2].v : '#';
-                const playUrl = row.c[3] && row.c[3].v ? row.c[3].v : ''; // new column
-
-                // Skip if this looks like the header row
-                if (hologramId.toString().toLowerCase().includes('hologram') || infoText.toString().toLowerCase().includes('info')) {
-                    return;
-                }
-
-                const safePdfLink = pdfName === '#' ? '#' : encodeURI(pdfName);
-                const targetAttr = pdfName === '#' ? '_self' : '_blank';
-
-                // Check if we have a valid Play URL to show the button
                 let playButtonHtml = '';
-                if (playUrl && playUrl.trim() !== '') {
+                if (record.playUrl && record.playUrl.trim() !== '') {
                     playButtonHtml = `
-                        <a href="${encodeURI(playUrl)}" target="_blank" class="inline-flex items-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors">
+                        <a href="${encodeURI(record.playUrl)}" target="_blank" class="inline-flex items-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                             View Play
                         </a>
@@ -202,13 +287,14 @@
                 
                 tr.innerHTML = `
                     <td class="py-4 px-6 whitespace-nowrap">
-                        <span class="bg-slate-100 text-slate-600 font-mono text-xs font-bold px-2.5 py-1 rounded border border-slate-200 group-hover:bg-blue-50 group-hover:text-blue-700 group-hover:border-blue-200 transition-colors">
-                            ${hologramId}
-                        </span>
+                        <button onclick="openQrModal('${record.absolutePdfUrl}', '${record.hologramId}')" class="bg-slate-100 text-slate-600 font-mono text-xs font-bold px-2.5 py-1 rounded border border-slate-200 hover:bg-slate-800 hover:text-white hover:border-slate-800 transition-colors flex items-center gap-2 cursor-pointer outline-none">
+                            ${record.hologramId}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-50"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/></svg>
+                        </button>
                     </td>
                     <td class="py-4 px-6">
-                        <a href="${safePdfLink}" target="${targetAttr}" class="text-sm font-semibold text-slate-800 hover:text-blue-600 hover:underline transition-colors block">
-                            ${infoText}
+                        <a href="${safePdfLink}" target="${targetAttr}" class="text-sm font-semibold text-slate-800 hover:text-blue-600 hover:underline transition-colors block leading-relaxed">
+                            ${record.infoText}
                         </a>
                     </td>
                     <td class="py-4 px-6 text-right whitespace-nowrap">
@@ -218,6 +304,107 @@
 
                 dataList.appendChild(tr);
             });
+        }
+
+        // --- Search ---
+        function toggleSearch() {
+            const wrapper = document.getElementById('search-wrapper');
+            const input = document.getElementById('search-input');
+            wrapper.classList.toggle('search-expanded');
+            if(wrapper.classList.contains('search-expanded')) {
+                input.focus();
+            } else {
+                input.value = "";
+                searchQuery = "";
+                renderTable();
+            }
+        }
+
+        function handleSearch(val) {
+            searchQuery = val;
+            renderTable();
+        }
+
+        // --- Sorting ---
+        function handleSort(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'desc'; // Default to newest first when switching to date, or highest ID
+            }
+
+            updateSortIcons();
+
+            allRecords.sort((a, b) => {
+                let valA, valB;
+                if (column === 'id') {
+                    valA = a.hologramId.toLowerCase(); 
+                    valB = b.hologramId.toLowerCase();
+                } else if (column === 'date') {
+                    valA = a.parsedDate; 
+                    valB = b.parsedDate;
+                }
+                
+                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            renderTable();
+        }
+
+        function updateSortIcons() {
+            const idIcon = document.getElementById('sort-icon-id');
+            const dateIcon = document.getElementById('sort-icon-date');
+            
+            idIcon.style.opacity = currentSort.column === 'id' ? '1' : '0';
+            dateIcon.style.opacity = currentSort.column === 'date' ? '1' : '0';
+
+            const transformStr = currentSort.direction === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)';
+            if(currentSort.column === 'id') idIcon.style.transform = transformStr;
+            if(currentSort.column === 'date') dateIcon.style.transform = transformStr;
+        }
+
+        // --- QR Code Modal ---
+        function openQrModal(url, id) {
+            const modal = document.getElementById('qr-modal');
+            const container = document.getElementById('qr-code-container');
+            const idLabel = document.getElementById('qr-modal-id');
+            
+            idLabel.innerText = id;
+            container.innerHTML = '';
+            container.setAttribute('data-id', id);
+
+            // Generate B&W QR code using a lower error correction level to support longer URLs without overflow
+            new QRCode(container, {
+                text: url,
+                width: 220,
+                height: 220,
+                colorDark : "#0f172a", // slate-900
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.L
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeQrModal() {
+            document.getElementById('qr-modal').classList.add('hidden');
+        }
+
+        function downloadQR() {
+            const container = document.getElementById('qr-code-container');
+            const canvas = container.querySelector('canvas');
+            if (canvas) {
+                const url = canvas.toDataURL("image/png");
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Certificate_QR_${container.getAttribute('data-id')}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
         }
 
         // Initialize fetch on page load
