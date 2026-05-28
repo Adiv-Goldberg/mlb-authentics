@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MLB Authentication Hub</title>
+    <link rel="icon" type="image/png" href="https://builds.mlbstatic.com/mlb.com/sections/authentication/builds/dbb7587051547ba412ff95e4622402ba4999a23e_1646158569/images/ap-logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -377,11 +378,12 @@
             container.setAttribute('data-id', id);
 
             // Generate B&W QR code using a lower error correction level to support longer URLs without overflow
+            // Increased resolution to 256 and pure black for crisper small prints
             new QRCode(container, {
                 text: url,
-                width: 220,
-                height: 220,
-                colorDark : "#0f172a", // slate-900
+                width: 256,
+                height: 256,
+                colorDark : "#000000", // Pure black for max contrast
                 colorLight : "#ffffff",
                 correctLevel : QRCode.CorrectLevel.L
             });
